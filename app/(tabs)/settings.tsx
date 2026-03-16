@@ -241,7 +241,7 @@ export default function SettingsScreen() {
           <SettingsRow type="button" label="Jetzt synchronisieren"
             onPress={() => Alert.alert('Sync', 'Manuelle Synchronisierung gestartet...')} />
           <SettingsRow type="button" label="Sync-Protokoll anzeigen →" last
-            onPress={() => router.push('/settings/sync-protokoll' as any)} />
+            onPress={() => router.push('/detail/sync-protokoll' as any)} />
         </SettingsSection>
 
         {/* 2. KI-Analyse */}
@@ -452,13 +452,13 @@ export default function SettingsScreen() {
           <SettingsRow type="info" label="Version" value={`LabDoc v${APP_VERSION} (Build ${BUILD})`} />
           <SettingsRow type="info" label="Plattform" value="Android / Expo" />
           <SettingsRow type="button" label="Versionshinweise →"
-            onPress={() => router.push('/settings/changelog' as any)} />
+            onPress={() => router.push('/detail/changelog' as any)} />
           <SettingsRow type="button" label="Feedback senden →"
             onPress={() => Alert.alert('Feedback', 'Bitte senden Sie Feedback an: feedback@ihrfirma.ch')} />
           <SettingsRow type="button" label="Lizenzen →"
             onPress={() => Alert.alert('Open Source Lizenzen', 'React Native, Expo, expo-sqlite, expo-sharing, Anthropic SDK')} />
           <SettingsRow type="button" label="Diagnosebericht erstellen" last
-            onPress={() => router.push('/settings/diagnose' as any)} />
+            onPress={() => router.push('/detail/diagnose' as any)} />
         </SettingsSection>
 
       </ScrollView>

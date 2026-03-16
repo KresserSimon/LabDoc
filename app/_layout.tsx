@@ -31,9 +31,9 @@ export default function RootLayout() {
           name="versuch/[id]/index"
           options={{ headerShown: false }}
         />
-        <Stack.Screen name="settings/sync-protokoll" options={{ headerShown: false }} />
-        <Stack.Screen name="settings/diagnose"        options={{ headerShown: false }} />
-        <Stack.Screen name="settings/changelog"       options={{ headerShown: false }} />
+        <Stack.Screen name="detail/sync-protokoll" options={{ headerShown: false }} />
+        <Stack.Screen name="detail/diagnose"        options={{ headerShown: false }} />
+        <Stack.Screen name="detail/changelog"       options={{ headerShown: false }} />
       </Stack>
       </SettingsProvider>
     </GestureHandlerRootView>
