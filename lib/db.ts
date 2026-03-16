@@ -72,6 +72,51 @@ export async function initDB(): Promise<void> {
       onedrive_path TEXT,
       created_at TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS messmessungen (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      versuch_id TEXT NOT NULL REFERENCES versuche(id) ON DELETE CASCADE,
+      schritt_id INTEGER REFERENCES prozessschritte(id) ON DELETE SET NULL,
+      methode TEXT NOT NULL,
+      bezeichnung TEXT,
+      notizen TEXT,
+      created_at TEXT,
+      updated_at TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS alicona_messungen (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      messung_id INTEGER NOT NULL REFERENCES messmessungen(id) ON DELETE CASCADE,
+      objektiv TEXT NOT NULL,
+      messprogramm TEXT,
+      ra REAL, rz REAL, rmax REAL, rsm REAL, sa REAL, sz REAL,
+      weitere_werte TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS mountainsmap_messungen (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      messung_id INTEGER NOT NULL REFERENCES messmessungen(id) ON DELETE CASCADE,
+      template_name TEXT,
+      weitere_werte TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS sonstige_messungen (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      messung_id INTEGER NOT NULL REFERENCES messmessungen(id) ON DELETE CASCADE,
+      methoden_name TEXT,
+      weitere_werte TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS messung_dateien (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      messung_id INTEGER NOT NULL REFERENCES messmessungen(id) ON DELETE CASCADE,
+      datei_typ TEXT NOT NULL,
+      filename TEXT NOT NULL,
+      local_path TEXT,
+      onedrive_path TEXT,
+      size_kb REAL,
+      created_at TEXT
+    );
   `);
 }
 
@@ -348,10 +393,151 @@ export async function exportAllVersuche(): Promise<string> {
   return [header, ...rows].join('\n');
 }
 
+// ─── Messmessungen CRUD ─────────────────────────────────────────────────────
+
+import type { Messmessung, MessDatei, AliconaMessung, MountainsmapMessung, SonstigeMessung } from '../constants/messmethoden';
+
+async function loadMessungDetails(m: { id: number; methode: string }): Promise<Partial<Messmessung>> {
+  if (m.methode === 'Alicona') {
+    const row = await db.getFirstAsync<any>('SELECT * FROM alicona_messungen WHERE messung_id = ?', [m.id]);
+    if (row) {
+      const alicona: AliconaMessung = {
+        objektiv: row.objektiv,
+        messprogramm: row.messprogramm ?? '',
+        ra: row.ra ?? undefined, rz: row.rz ?? undefined, rmax: row.rmax ?? undefined,
+        rsm: row.rsm ?? undefined, sa: row.sa ?? undefined, sz: row.sz ?? undefined,
+        weitere_werte: row.weitere_werte ? JSON.parse(row.weitere_werte) : [],
+      };
+      return { alicona };
+    }
+  } else if (m.methode === 'Mountainsmap') {
+    const row = await db.getFirstAsync<any>('SELECT * FROM mountainsmap_messungen WHERE messung_id = ?', [m.id]);
+    if (row) {
+      const mountainsmap: MountainsmapMessung = {
+        template_name: row.template_name ?? '',
+        weitere_werte: row.weitere_werte ? JSON.parse(row.weitere_werte) : [],
+      };
+      return { mountainsmap };
+    }
+  } else {
+    const row = await db.getFirstAsync<any>('SELECT * FROM sonstige_messungen WHERE messung_id = ?', [m.id]);
+    if (row) {
+      const sonstige: SonstigeMessung = {
+        methoden_name: row.methoden_name ?? '',
+        weitere_werte: row.weitere_werte ? JSON.parse(row.weitere_werte) : [],
+      };
+      return { sonstige };
+    }
+  }
+  return {};
+}
+
+export async function getMeasurementsByVersuch(versuch_id: string): Promise<Messmessung[]> {
+  const rows = await db.getAllAsync<any>('SELECT * FROM messmessungen WHERE versuch_id = ? ORDER BY created_at ASC', [versuch_id]);
+  return Promise.all(rows.map(async r => {
+    const details = await loadMessungDetails(r);
+    const dateien = await db.getAllAsync<MessDatei>('SELECT * FROM messung_dateien WHERE messung_id = ?', [r.id]);
+    return { ...r, ...details, dateien } as Messmessung;
+  }));
+}
+
+export async function getMeasurementsBySchritt(schritt_id: number): Promise<Messmessung[]> {
+  const rows = await db.getAllAsync<any>('SELECT * FROM messmessungen WHERE schritt_id = ? ORDER BY created_at ASC', [schritt_id]);
+  return Promise.all(rows.map(async r => {
+    const details = await loadMessungDetails(r);
+    const dateien = await db.getAllAsync<MessDatei>('SELECT * FROM messung_dateien WHERE messung_id = ?', [r.id]);
+    return { ...r, ...details, dateien } as Messmessung;
+  }));
+}
+
+export async function createMeasurement(data: Omit<Messmessung, 'id' | 'created_at'>): Promise<number> {
+  const now = new Date().toISOString();
+  const result = await db.runAsync(
+    `INSERT INTO messmessungen (versuch_id, schritt_id, methode, bezeichnung, notizen, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [data.versuch_id, data.schritt_id ?? null, data.methode, data.bezeichnung ?? null, data.notizen ?? null, now, now]
+  );
+  const id = result.lastInsertRowId;
+  if (data.methode === 'Alicona' && data.alicona) {
+    const a = data.alicona;
+    await db.runAsync(
+      `INSERT INTO alicona_messungen (messung_id, objektiv, messprogramm, ra, rz, rmax, rsm, sa, sz, weitere_werte)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [id, a.objektiv, a.messprogramm ?? null, a.ra ?? null, a.rz ?? null, a.rmax ?? null,
+       a.rsm ?? null, a.sa ?? null, a.sz ?? null, JSON.stringify(a.weitere_werte ?? [])]
+    );
+  } else if (data.methode === 'Mountainsmap' && data.mountainsmap) {
+    const mm = data.mountainsmap;
+    await db.runAsync(
+      `INSERT INTO mountainsmap_messungen (messung_id, template_name, weitere_werte) VALUES (?, ?, ?)`,
+      [id, mm.template_name ?? null, JSON.stringify(mm.weitere_werte ?? [])]
+    );
+  } else if (data.methode === 'Sonstige' && data.sonstige) {
+    const s = data.sonstige;
+    await db.runAsync(
+      `INSERT INTO sonstige_messungen (messung_id, methoden_name, weitere_werte) VALUES (?, ?, ?)`,
+      [id, s.methoden_name ?? null, JSON.stringify(s.weitere_werte ?? [])]
+    );
+  }
+  return id;
+}
+
+export async function updateMeasurement(id: number, data: Partial<Messmessung>): Promise<void> {
+  const now = new Date().toISOString();
+  await db.runAsync(
+    `UPDATE messmessungen SET bezeichnung=?, notizen=?, updated_at=? WHERE id=?`,
+    [data.bezeichnung ?? null, data.notizen ?? null, now, id]
+  );
+  if (data.alicona) {
+    const a = data.alicona;
+    await db.runAsync(
+      `UPDATE alicona_messungen SET objektiv=?, messprogramm=?, ra=?, rz=?, rmax=?, rsm=?, sa=?, sz=?, weitere_werte=? WHERE messung_id=?`,
+      [a.objektiv, a.messprogramm ?? null, a.ra ?? null, a.rz ?? null, a.rmax ?? null,
+       a.rsm ?? null, a.sa ?? null, a.sz ?? null, JSON.stringify(a.weitere_werte ?? []), id]
+    );
+  } else if (data.mountainsmap) {
+    const mm = data.mountainsmap;
+    await db.runAsync(
+      `UPDATE mountainsmap_messungen SET template_name=?, weitere_werte=? WHERE messung_id=?`,
+      [mm.template_name ?? null, JSON.stringify(mm.weitere_werte ?? []), id]
+    );
+  } else if (data.sonstige) {
+    const s = data.sonstige;
+    await db.runAsync(
+      `UPDATE sonstige_messungen SET methoden_name=?, weitere_werte=? WHERE messung_id=?`,
+      [s.methoden_name ?? null, JSON.stringify(s.weitere_werte ?? []), id]
+    );
+  }
+}
+
+export async function deleteMeasurement(id: number): Promise<void> {
+  await db.runAsync('DELETE FROM messmessungen WHERE id = ?', [id]);
+}
+
+export async function addMessungDatei(messung_id: number, datei: Omit<MessDatei, 'id'>): Promise<number> {
+  const now = new Date().toISOString();
+  const result = await db.runAsync(
+    `INSERT INTO messung_dateien (messung_id, datei_typ, filename, local_path, onedrive_path, size_kb, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [messung_id, datei.datei_typ, datei.filename, datei.local_path ?? null,
+     datei.onedrive_path ?? null, datei.size_kb ?? null, now]
+  );
+  return result.lastInsertRowId;
+}
+
+export async function deleteMessungDatei(datei_id: number): Promise<void> {
+  await db.runAsync('DELETE FROM messung_dateien WHERE id = ?', [datei_id]);
+}
+
 // ─── DB Reset ───────────────────────────────────────────────────────────────
 
 export async function resetDB(): Promise<void> {
   await db.execAsync(`
+    DROP TABLE IF EXISTS messung_dateien;
+    DROP TABLE IF EXISTS sonstige_messungen;
+    DROP TABLE IF EXISTS mountainsmap_messungen;
+    DROP TABLE IF EXISTS alicona_messungen;
+    DROP TABLE IF EXISTS messmessungen;
     DROP TABLE IF EXISTS pdfs;
     DROP TABLE IF EXISTS bilder;
     DROP TABLE IF EXISTS messwerte;

@@ -28,12 +28,16 @@ import ProzesskettTimeline from '../../components/ProzesskettTimeline';
 import SchrittKarte from '../../components/SchrittKarte';
 import MesswertModal from '../../components/MesswertModal';
 import StatusBadge from '../../components/StatusBadge';
+import MessmethodenTab from '../../components/MessmethodenTab';
+import { getMeasurementsByVersuch } from '../../lib/db';
+import { type Messmessung, type MessMethode, type KennWert, METHODE_LABELS } from '../../constants/messmethoden';
 
-type TabId = 'uebersicht' | 'prozesskette' | 'bilder' | 'messdaten' | 'pdfs' | 'onedrive' | 'ki';
+type TabId = 'uebersicht' | 'prozesskette' | 'messungen' | 'bilder' | 'messdaten' | 'pdfs' | 'onedrive' | 'ki';
 
 const TABS: { id: TabId; label: string }[] = [
   { id: 'uebersicht', label: 'Übersicht' },
   { id: 'prozesskette', label: 'Prozesse' },
+  { id: 'messungen', label: 'Messungen' },
   { id: 'bilder', label: 'Bilder' },
   { id: 'messdaten', label: 'Messdaten' },
   { id: 'pdfs', label: 'PDFs' },
@@ -50,6 +54,7 @@ export default function VersuchDetail() {
   const [messwerte, setMesswerte] = useState<Messwert[]>([]);
   const [bilder, setBilder] = useState<Bild[]>([]);
   const [pdfs, setPDFs] = useState<PDF[]>([]);
+  const [messmessungen, setMessmessungen] = useState<Messmessung[]>([]);
   const [activeTab, setActiveTab] = useState<TabId>('uebersicht');
   const [activeSchrittId, setActiveSchrittId] = useState<number | undefined>();
 
@@ -71,18 +76,20 @@ export default function VersuchDetail() {
 
   const load = useCallback(async () => {
     if (!id) return;
-    const [v, s, m, b, p] = await Promise.all([
+    const [v, s, m, b, p, mm] = await Promise.all([
       getVersuchById(id),
       getSchritteForVersuch(id),
       getMesswerteForVersuch(id),
       getBilderForVersuch(id),
       getPDFsForVersuch(id),
+      getMeasurementsByVersuch(id),
     ]);
     setVersuch(v);
     setSchritte(s);
     setMesswerte(m);
     setBilder(b);
     setPDFs(p);
+    setMessmessungen(mm);
   }, [id]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -230,7 +237,7 @@ export default function VersuchDetail() {
       const apiKey = await SecureStore.getItemAsync('anthropic_api_key');
       if (!apiKey) { setKiError('Kein Anthropic API-Key. Bitte in Einstellungen konfigurieren.'); return; }
 
-      const prompt = buildKIPrompt(versuch, schritte, messwerte);
+      const prompt = buildKIPrompt(versuch, schritte, messwerte, messmessungen);
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -314,6 +321,9 @@ export default function VersuchDetail() {
             onDeleteBild={handleDeleteBild}
             onAddSchritt={() => setAddSchrittModal(true)}
           />
+        )}
+        {activeTab === 'messungen' && (
+          <MessmethodenTab versuchId={versuch.id} schritte={schritte} />
         )}
         {activeTab === 'bilder' && (
           <BilderTab
@@ -841,7 +851,7 @@ function KITab({ loading, result, error, onAnalyse }: {
 
 // ─── KI Prompt Builder ──────────────────────────────────────────────────────
 
-function buildKIPrompt(versuch: Versuch, schritte: Prozessschritt[], messwerte: Messwert[]): string {
+function buildKIPrompt(versuch: Versuch, schritte: Prozessschritt[], messwerte: Messwert[], messmessungen: Messmessung[]): string {
   const chain = schritte.map((s, i) =>
     `${i + 1}. ${s.schritt_name}${s.process_abbr ? ` (${s.process_abbr})` : ''}${s.machine ? `, Maschine: ${s.machine}` : ''}, Status: ${s.status}
 ${s.parameter_values.length ? '   Parameter: ' + s.parameter_values.map(p => `${p.param_name}=${p.param_value}`).join(', ') : ''}
@@ -850,6 +860,37 @@ ${messwerte.filter(m => m.schritt_id === s.id).map(m => `   Messwert: ${m.name}=
 
   const globalMess = messwerte.filter(m => !m.schritt_id)
     .map(m => `- ${m.name}: ${m.wert} ${m.einheit}`).join('\n');
+
+  const schrittName = (id?: number | null) => {
+    if (!id) return 'Gesamtversuch';
+    const s = schritte.find(s => s.id === id);
+    return s ? `${s.position}. ${s.schritt_name}` : `Schritt ${id}`;
+  };
+
+  const messText = messmessungen.map(m => {
+    const basis = `${m.bezeichnung || METHODE_LABELS[m.methode as MessMethode]} [${schrittName(m.schritt_id)}]`;
+    if (m.methode === 'Alicona' && m.alicona) {
+      const a = m.alicona;
+      const werte = [
+        a.ra  != null ? `Ra=${a.ra} µm`  : null,
+        a.rz  != null ? `Rz=${a.rz} µm`  : null,
+        a.rmax != null ? `Rmax=${a.rmax} µm` : null,
+        a.sa  != null ? `Sa=${a.sa} µm`  : null,
+        a.sz  != null ? `Sz=${a.sz} µm`  : null,
+        ...a.weitere_werte.map((w: KennWert) => `${w.name}=${w.wert} ${w.einheit}`),
+      ].filter(Boolean).join(', ');
+      return `${basis} Objektiv:${a.objektiv} ${werte}`;
+    }
+    if (m.methode === 'Mountainsmap' && m.mountainsmap) {
+      const werte = m.mountainsmap.weitere_werte.map((w: KennWert) => `${w.name}=${w.wert} ${w.einheit}`).join(', ');
+      return `${basis} Template:${m.mountainsmap.template_name} ${werte}`;
+    }
+    if (m.sonstige) {
+      const werte = m.sonstige.weitere_werte.map((w: KennWert) => `${w.name}=${w.wert} ${w.einheit}`).join(', ');
+      return `${basis} Methode:${m.sonstige.methoden_name} ${werte}`;
+    }
+    return basis;
+  }).join('\n');
 
   return `Du bist ein Experte für Oberflächentechnik und Präzisionsfertigung. Analysiere folgenden Laborversuch und gib eine detaillierte Bewertung auf Deutsch.
 
@@ -866,12 +907,17 @@ ${chain}
 ## Gesamtmesswerte
 ${globalMess || '– keine –'}
 
+## Messmethoden & Oberflächenkennwerte (${messmessungen.length} Messungen)
+${messText || '– keine –'}
+
 Bitte analysiere:
 1. Bewertung der Prozesskette und ihrer Logik
 2. Wechselwirkungen zwischen den einzelnen Schritten
-3. Auffälligkeiten in den Parametern oder Messwerten
-4. Konkrete Optimierungsvorschläge
-5. Empfohlene nächste Schritte
+3. Oberflächenqualität: Ra/Rz/Sa im Vergleich zu typischen Zielwerten für ${versuch.material ?? 'das Material'}
+4. Vor/Nach-Vergleich der Oberflächenkennwerte über die Prozesskette
+5. Auffälligkeiten in den Parametern oder Messwerten
+6. Konkrete Optimierungsvorschläge
+7. Empfohlene nächste Schritte
 
 Antworte strukturiert und präzise.`;
 }

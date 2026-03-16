@@ -292,4 +292,49 @@ export async function exportAllVersuche(): Promise<string> {
   return ['ID;Bezeichnung;Material;Dim_X;Dim_Y;Dim_Z;Status;Erstellt', ...rows].join('\n');
 }
 
+// ─── Messmessungen (web shim) ────────────────────────────────────────────────
+
+import type { Messmessung, MessDatei } from '../constants/messmethoden';
+
+export async function getMeasurementsByVersuch(versuch_id: string): Promise<Messmessung[]> {
+  return load<Messmessung[]>('messmessungen', []).filter(m => m.versuch_id === versuch_id)
+    .map(m => ({ ...m, dateien: load<MessDatei[]>('messung_dateien', []).filter(d => (d as any).messung_id === m.id) }));
+}
+
+export async function getMeasurementsBySchritt(schritt_id: number): Promise<Messmessung[]> {
+  return load<Messmessung[]>('messmessungen', []).filter(m => m.schritt_id === schritt_id)
+    .map(m => ({ ...m, dateien: load<MessDatei[]>('messung_dateien', []).filter(d => (d as any).messung_id === m.id) }));
+}
+
+export async function createMeasurement(data: Omit<Messmessung, 'id' | 'created_at'>): Promise<number> {
+  const id = nextId();
+  const list = load<Messmessung[]>('messmessungen', []);
+  list.push({ ...data, id, created_at: new Date().toISOString(), dateien: [] });
+  save('messmessungen', list);
+  return id;
+}
+
+export async function updateMeasurement(id: number, data: Partial<Messmessung>): Promise<void> {
+  save('messmessungen', load<Messmessung[]>('messmessungen', []).map(m =>
+    m.id === id ? { ...m, ...data } : m
+  ));
+}
+
+export async function deleteMeasurement(id: number): Promise<void> {
+  save('messmessungen', load<Messmessung[]>('messmessungen', []).filter(m => m.id !== id));
+  save('messung_dateien', load<any[]>('messung_dateien', []).filter(d => d.messung_id !== id));
+}
+
+export async function addMessungDatei(messung_id: number, datei: Omit<MessDatei, 'id'>): Promise<number> {
+  const id = nextId();
+  const list = load<any[]>('messung_dateien', []);
+  list.push({ ...datei, id, messung_id, created_at: new Date().toISOString() });
+  save('messung_dateien', list);
+  return id;
+}
+
+export async function deleteMessungDatei(datei_id: number): Promise<void> {
+  save('messung_dateien', load<any[]>('messung_dateien', []).filter(d => d.id !== datei_id));
+}
+
 export default null;
