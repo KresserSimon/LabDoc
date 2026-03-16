@@ -44,6 +44,9 @@ export interface AppSettings {
   notify_open_versuche: boolean;
   notify_open_threshold_days: number;
   notify_sync_errors: boolean;
+
+  // Benutzerrolle
+  user_role: 'user' | 'admin';
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -79,6 +82,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   notify_open_versuche: false,
   notify_open_threshold_days: 7,
   notify_sync_errors: true,
+  user_role: 'user',
 };
 
 export const AI_MODELS = [

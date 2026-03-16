@@ -14,6 +14,7 @@ import {
 import { Colors, getStatusColor } from '../../constants/colors';
 import { PROCESSES } from '../../constants/processes';
 import StatusBadge from '../../components/StatusBadge';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 
 const STATUS_FILTERS: (VersuchStatus | 'Alle')[] = [
   'Alle', 'Entwurf', 'Aktiv', 'Abgeschlossen', 'Archiviert',
@@ -23,6 +24,8 @@ const PROCESS_FILTERS = ['Alle', ...PROCESSES.map(p => p.abbr)];
 
 export default function Versuche() {
   const router = useRouter();
+  const { settings } = useSettingsContext();
+  const isAdmin = settings.user_role === 'admin';
   const [versuche, setVersuche] = useState<Versuch[]>([]);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<VersuchStatus | 'Alle'>('Alle');
@@ -53,6 +56,10 @@ export default function Versuche() {
   });
 
   const handleDelete = (v: Versuch) => {
+    if (!isAdmin) {
+      Alert.alert('Keine Berechtigung', 'Nur Admins können Versuche löschen.\nBitte im Einstellungsmenü anmelden.');
+      return;
+    }
     Alert.alert('Versuch löschen?', `${v.id} – ${v.bezeichnung ?? ''}`, [
       { text: 'Abbrechen', style: 'cancel' },
       {

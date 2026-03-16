@@ -31,6 +31,7 @@ import StatusBadge from '../../components/StatusBadge';
 import MessmethodenTab from '../../components/MessmethodenTab';
 import { getMeasurementsByVersuch } from '../../lib/db';
 import { type Messmessung, type MessMethode, type KennWert, METHODE_LABELS } from '../../constants/messmethoden';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 
 type TabId = 'uebersicht' | 'prozesskette' | 'messungen' | 'bilder' | 'messdaten' | 'pdfs' | 'onedrive' | 'ki';
 
@@ -48,6 +49,8 @@ const TABS: { id: TabId; label: string }[] = [
 export default function VersuchDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
+  const { settings } = useSettingsContext();
+  const isAdmin = settings.user_role === 'admin';
 
   const [versuch, setVersuch] = useState<Versuch | null>(null);
   const [schritte, setSchritte] = useState<Prozessschritt[]>([]);
@@ -114,6 +117,7 @@ export default function VersuchDetail() {
   };
 
   const handleDeleteSchritt = async (id: number) => {
+    if (!isAdmin) { Alert.alert('Keine Berechtigung', 'Nur Admins können Schritte löschen.'); return; }
     await deleteSchritt(id);
     load();
   };
@@ -133,6 +137,7 @@ export default function VersuchDetail() {
   };
 
   const handleDeleteMesswert = async (id: number) => {
+    if (!isAdmin) { Alert.alert('Keine Berechtigung', 'Nur Admins können Messwerte löschen.'); return; }
     await deleteMesswert(id);
     load();
   };
@@ -175,6 +180,7 @@ export default function VersuchDetail() {
   };
 
   const handleDeleteBild = async (id: number) => {
+    if (!isAdmin) { Alert.alert('Keine Berechtigung', 'Nur Admins können Bilder löschen.'); return; }
     await deleteBild(id);
     load();
   };
@@ -196,6 +202,7 @@ export default function VersuchDetail() {
   };
 
   const handleDeletePDF = async (id: number) => {
+    if (!isAdmin) { Alert.alert('Keine Berechtigung', 'Nur Admins können PDFs löschen.'); return; }
     await deletePDF(id);
     load();
   };
@@ -323,7 +330,7 @@ export default function VersuchDetail() {
           />
         )}
         {activeTab === 'messungen' && (
-          <MessmethodenTab versuchId={versuch.id} schritte={schritte} />
+          <MessmethodenTab versuchId={versuch.id} schritte={schritte} isAdmin={isAdmin} />
         )}
         {activeTab === 'bilder' && (
           <BilderTab

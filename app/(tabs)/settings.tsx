@@ -99,6 +99,29 @@ export default function SettingsScreen() {
   const [picker, setPicker] = useState<{ key: keyof AppSettings; options: PickerOption[] } | null>(null);
   const [resetModalVisible, setResetModalVisible] = useState(false);
   const [resetInput, setResetInput] = useState('');
+  const [adminModalVisible, setAdminModalVisible] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminError, setAdminError] = useState('');
+
+  const isAdmin = settings.user_role === 'admin';
+
+  const handleAdminLogin = () => {
+    if (adminPassword === 'Banana123') {
+      updateSetting('user_role', 'admin');
+      setAdminModalVisible(false);
+      setAdminPassword('');
+      setAdminError('');
+    } else {
+      setAdminError('Falsches Passwort.');
+    }
+  };
+
+  const handleSwitchToUser = () => {
+    Alert.alert('Zu User wechseln?', 'Admin-Modus wird beendet. Löschfunktionen werden deaktiviert.', [
+      { text: 'Abbrechen', style: 'cancel' },
+      { text: 'Wechseln', onPress: () => updateSetting('user_role', 'user') },
+    ]);
+  };
 
   useEffect(() => {
     SecureStore.getItemAsync('ms_access_token').then(t => setMsLoggedIn(!!t));
@@ -207,6 +230,34 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={s.scroll} showsVerticalScrollIndicator={false}>
         <Text style={s.screenTitle}>EINSTELLUNGEN</Text>
 
+        {/* 0. Benutzerprofil */}
+        <SettingsSection title="BENUTZERPROFIL">
+          <View style={s.roleRow}>
+            <View style={s.roleLeft}>
+              <View style={[s.roleBadge, isAdmin ? s.roleBadgeAdmin : s.roleBadgeUser]}>
+                <Text style={[s.roleBadgeText, isAdmin ? s.roleBadgeTextAdmin : s.roleBadgeTextUser]}>
+                  {isAdmin ? 'ADMIN' : 'USER'}
+                </Text>
+              </View>
+              <View>
+                <Text style={s.roleTitle}>{isAdmin ? 'Administrator' : 'Benutzer'}</Text>
+                <Text style={s.roleDesc}>
+                  {isAdmin
+                    ? 'Vollzugriff: Erstellen, Hochladen, Löschen'
+                    : 'Eingeschränkt: Erstellen und Hochladen'}
+                </Text>
+              </View>
+            </View>
+            {isAdmin
+              ? <TouchableOpacity style={[s.smallBtn, s.smallBtnDanger]} onPress={handleSwitchToUser}>
+                  <Text style={s.smallBtnDangerText}>Abmelden</Text>
+                </TouchableOpacity>
+              : <TouchableOpacity style={[s.smallBtn, s.smallBtnPrimary]} onPress={() => { setAdminPassword(''); setAdminError(''); setAdminModalVisible(true); }}>
+                  <Text style={s.smallBtnPrimaryText}>Admin-Login</Text>
+                </TouchableOpacity>}
+          </View>
+        </SettingsSection>
+
         {/* 1. OneDrive */}
         <SettingsSection title="ONEDRIVE & DATEIABLAGE">
           <View style={s.ondriveStatus}>
@@ -291,7 +342,7 @@ export default function SettingsScreen() {
           <SettingsRow type="button" label="Nicht verwendete Dateien löschen"
             hint="Löscht Dateien die keinem Versuch mehr zugeordnet sind."
             onPress={handleCleanup} />
-          <SettingsRow type="danger" label="Alle Daten löschen ⚠️" last onPress={handleDBReset} />
+          {isAdmin && <SettingsRow type="danger" label="Alle Daten löschen ⚠️" last onPress={handleDBReset} />}
         </SettingsSection>
 
         {/* 4. Standardwerte */}
@@ -508,6 +559,38 @@ export default function SettingsScreen() {
         </View>
       </Modal>
 
+      {/* Admin Login Modal */}
+      <Modal visible={adminModalVisible} transparent animationType="fade">
+        <View style={s.resetOverlay}>
+          <View style={s.adminModal}>
+            <Text style={s.adminModalTitle}>ADMIN-LOGIN</Text>
+            <Text style={s.adminModalDesc}>
+              Admin-Modus aktiviert Löschfunktionen.{'\n'}Bitte Passwort eingeben:
+            </Text>
+            <TextInput
+              style={s.adminInput}
+              value={adminPassword}
+              onChangeText={v => { setAdminPassword(v); setAdminError(''); }}
+              placeholder="Passwort"
+              placeholderTextColor={Colors.textSecondary}
+              secureTextEntry
+              autoFocus
+              onSubmitEditing={handleAdminLogin}
+            />
+            {adminError ? <Text style={s.adminError}>{adminError}</Text> : null}
+            <View style={s.resetBtns}>
+              <TouchableOpacity style={s.resetCancel}
+                onPress={() => { setAdminModalVisible(false); setAdminPassword(''); setAdminError(''); }}>
+                <Text style={s.resetCancelText}>Abbrechen</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={s.adminConfirm} onPress={handleAdminLogin}>
+                <Text style={s.adminConfirmText}>Anmelden</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -574,4 +657,25 @@ const s = StyleSheet.create({
   resetCancelText: { fontFamily: 'monospace', fontSize: 13, color: Colors.textSecondary },
   resetConfirm: { flex: 1, backgroundColor: Colors.danger, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
   resetConfirmText: { fontFamily: 'monospace', fontSize: 13, color: '#fff', fontWeight: '700' },
+
+  // Benutzerprofil
+  roleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12 },
+  roleLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  roleBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, minWidth: 52, alignItems: 'center' },
+  roleBadgeUser:  { backgroundColor: '#e8f0fb', borderWidth: 1, borderColor: Colors.primary },
+  roleBadgeAdmin: { backgroundColor: '#fff3e0', borderWidth: 1, borderColor: '#e65100' },
+  roleBadgeText: { fontFamily: 'monospace', fontSize: 10, fontWeight: '700', letterSpacing: 0.8 },
+  roleBadgeTextUser:  { color: Colors.primary },
+  roleBadgeTextAdmin: { color: '#e65100' },
+  roleTitle: { fontFamily: 'monospace', fontSize: 13, color: Colors.text, fontWeight: '600' },
+  roleDesc:  { fontFamily: 'monospace', fontSize: 10, color: Colors.textSecondary, marginTop: 2 },
+
+  // Admin Login Modal
+  adminModal: { backgroundColor: Colors.card, borderRadius: 12, padding: 20, borderWidth: 1, borderColor: Colors.primary },
+  adminModalTitle: { fontFamily: 'monospace', fontSize: 10, fontWeight: '700', color: Colors.primary, letterSpacing: 1, marginBottom: 10 },
+  adminModalDesc: { fontFamily: 'monospace', fontSize: 13, color: Colors.text, lineHeight: 19, marginBottom: 14 },
+  adminInput: { borderWidth: 1, borderColor: Colors.border, borderRadius: 6, padding: 10, fontFamily: 'monospace', fontSize: 14, color: Colors.text, backgroundColor: Colors.background, marginBottom: 6 },
+  adminError: { fontFamily: 'monospace', fontSize: 12, color: Colors.danger, marginBottom: 10 },
+  adminConfirm: { flex: 1, backgroundColor: Colors.primary, borderRadius: 8, paddingVertical: 12, alignItems: 'center' },
+  adminConfirmText: { fontFamily: 'monospace', fontSize: 13, color: '#fff', fontWeight: '700' },
 });

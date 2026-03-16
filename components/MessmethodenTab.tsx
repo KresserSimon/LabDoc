@@ -24,11 +24,12 @@ import SonstigeMessungFormular from './SonstigeMessungFormular';
 interface Props {
   versuchId: string;
   schritte: Prozessschritt[];
+  isAdmin?: boolean;
 }
 
 type FilterMethode = MessMethode | 'Alle';
 
-export default function MessmethodenTab({ versuchId, schritte }: Props) {
+export default function MessmethodenTab({ versuchId, schritte, isAdmin = false }: Props) {
   const [messungen, setMessungen] = useState<Messmessung[]>([]);
   const [filterMethode, setFilterMethode] = useState<FilterMethode>('Alle');
   const [filterSchritt, setFilterSchritt] = useState<number | null | 'alle'>('alle');
@@ -146,6 +147,7 @@ export default function MessmethodenTab({ versuchId, schritte }: Props) {
   };
 
   const handleDelete = (m: Messmessung) => {
+    if (!isAdmin) { Alert.alert('Keine Berechtigung', 'Nur Admins können Messungen löschen.'); return; }
     Alert.alert('Messung löschen?', m.bezeichnung || METHODE_LABELS[m.methode], [
       { text: 'Abbrechen', style: 'cancel' },
       { text: 'Löschen', style: 'destructive', onPress: async () => { await deleteMeasurement(m.id); load(); } },
@@ -153,6 +155,7 @@ export default function MessmethodenTab({ versuchId, schritte }: Props) {
   };
 
   const handleDeleteDatei = async (id: number) => {
+    if (!isAdmin) { Alert.alert('Keine Berechtigung', 'Nur Admins können Dateien löschen.'); return; }
     await deleteMessungDatei(id);
     setSavedDateien(prev => prev.filter(d => d.id !== id));
     if (detailMessung) {
@@ -325,12 +328,14 @@ export default function MessmethodenTab({ versuchId, schritte }: Props) {
             </View>
             <ScrollView contentContainerStyle={styles.formContent}>
               <DetailView messung={detailMessung} schritte={schritte} onDeleteDatei={handleDeleteDatei} />
-              <TouchableOpacity
-                style={styles.deleteMessungBtn}
-                onPress={() => { setDetailVisible(false); handleDelete(detailMessung); }}
-              >
-                <Text style={styles.deleteMessungText}>Messung löschen</Text>
-              </TouchableOpacity>
+              {isAdmin && (
+                <TouchableOpacity
+                  style={styles.deleteMessungBtn}
+                  onPress={() => { setDetailVisible(false); handleDelete(detailMessung); }}
+                >
+                  <Text style={styles.deleteMessungText}>Messung löschen</Text>
+                </TouchableOpacity>
+              )}
             </ScrollView>
           </View>
         )}
