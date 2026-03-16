@@ -10,7 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '../../lib/secureStore';
 import {
   getVersuchById, getSchritteForVersuch, updateVersuch, updateSchritt,
   insertSchritt, deleteSchritt, upsertParameterValues, reorderSchritte,

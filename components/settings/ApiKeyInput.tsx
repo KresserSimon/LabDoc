@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Modal, StyleSheet, Alert,
 } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import * as SecureStore from '../../lib/secureStore';
 import { Colors } from '../../constants/colors';
 
 const KEY = 'anthropic_api_key';
