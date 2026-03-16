@@ -1,0 +1,58 @@
+{
+  "appId": "com.labdoc.app",
+  "productName": "LabDoc",
+  "copyright": "Copyright © 2025 LabDoc",
+
+  "directories": {
+    "output": "release",
+    "buildResources": "assets"
+  },
+
+  "files": [
+    "electron/**/*",
+    "dist/**/*",
+    "assets/icon.png",
+    "node_modules/**/*",
+    "package.json"
+  ],
+
+  "extraResources": [
+    {
+      "from": "dist",
+      "to": "dist",
+      "filter": ["**/*"]
+    }
+  ],
+
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": ["x64"]
+      },
+      {
+        "target": "portable",
+        "arch": ["x64"]
+      }
+    ],
+    "icon": "assets/icon.png"
+  },
+
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "installerIcon": "assets/icon.png",
+    "uninstallerIcon": "assets/icon.png",
+    "installerHeaderIcon": "assets/icon.png",
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "LabDoc",
+    "artifactName": "LabDoc-Setup-${version}.exe"
+  },
+
+  "portable": {
+    "artifactName": "LabDoc-Portable-${version}.exe"
+  },
+
+  "publish": null
+}

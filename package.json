@@ -6,7 +6,11 @@
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "electron:dev": "concurrently \"expo start --web --port 8081\" \"wait-on http://localhost:8081 && electron electron/main.js\"",
+    "build:web": "expo export --platform web",
+    "electron:build": "npm run build:web && electron-builder --win --config electron-builder.json",
+    "dist": "npm run build:web && electron-builder --win --config electron-builder.json"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",
@@ -32,7 +36,11 @@
   },
   "devDependencies": {
     "@types/react": "~19.2.2",
-    "typescript": "~5.9.2"
+    "concurrently": "^9.2.1",
+    "electron": "^41.0.2",
+    "electron-builder": "^26.8.1",
+    "typescript": "~5.9.2",
+    "wait-on": "^9.0.4"
   },
   "private": true
 }

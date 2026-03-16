@@ -7,7 +7,9 @@
       "Bash(git commit:*)",
       "Bash(ls \"app/\\(tabs\\)\")",
       "Bash(npx tsc:*)",
-      "Bash(node -e \"const fs = require\\(''''expo-file-system''''\\); console.log\\(Object.keys\\(fs\\).slice\\(0,30\\)\\)\")"
+      "Bash(node -e \"const fs = require\\(''''expo-file-system''''\\); console.log\\(Object.keys\\(fs\\).slice\\(0,30\\)\\)\")",
+      "Bash(npm install:*)",
+      "Bash(ls metro.config.*)"
     ],
     "additionalDirectories": [
       "C:\\Users\\Smoon\\Labdocapp\\app\\versuch"
