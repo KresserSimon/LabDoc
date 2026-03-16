@@ -4,6 +4,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import { Colors } from '../constants/colors';
 import { type MountainsmapMessung, type MessDatei, type KennWert } from '../constants/messmethoden';
+import { useSettingsContext } from '../contexts/SettingsContext';
 
 interface Props {
   initial?: Partial<MountainsmapMessung>;
@@ -14,7 +15,8 @@ interface Props {
 }
 
 export default function MountainsmapFormular({ initial, dateien = [], onChange, onAddDatei, onDeleteDatei }: Props) {
-  const [templateName, setTemplateName] = useState(initial?.template_name ?? '');
+  const { settings } = useSettingsContext();
+  const [templateName, setTemplateName] = useState(initial?.template_name ?? settings.default_mountainsmap_template);
   const [weitereWerte, setWeitereWerte] = useState<KennWert[]>(initial?.weitere_werte ?? []);
 
   const emit = (tn?: string, ww?: KennWert[]) => {

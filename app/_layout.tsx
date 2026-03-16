@@ -3,6 +3,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { initDB } from '../lib/db';
+import { SettingsProvider } from '../contexts/SettingsContext';
 
 export default function RootLayout() {
   useEffect(() => {
@@ -11,6 +12,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <SettingsProvider>
       <StatusBar style="dark" backgroundColor="#f4f4f0" />
       <Stack
         screenOptions={{
@@ -29,7 +31,11 @@ export default function RootLayout() {
           name="versuch/[id]/index"
           options={{ headerShown: false }}
         />
+        <Stack.Screen name="settings/sync-protokoll" options={{ headerShown: false }} />
+        <Stack.Screen name="settings/diagnose"        options={{ headerShown: false }} />
+        <Stack.Screen name="settings/changelog"       options={{ headerShown: false }} />
       </Stack>
+      </SettingsProvider>
     </GestureHandlerRootView>
   );
 }

@@ -8,13 +8,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import {
-  generateVersuchId, insertVersuch, insertSchritt,
+  insertVersuch, insertSchritt,
   upsertParameterValues, insertBild, insertPDF,
   type VersuchStatus, type SchrittStatus,
 } from '../../lib/db';
 import { Colors, getSchrittStatusColor } from '../../constants/colors';
 import { MATERIALS } from '../../constants/materials';
 import { PROCESSES, SCHRITT_VORSCHLAEGE, getProcessByName } from '../../constants/processes';
+import { useSettingsContext } from '../../contexts/SettingsContext';
+import { generateID } from '../../utils/generateID';
 
 interface LocalSchritt {
   tempId: string;
@@ -31,15 +33,16 @@ function makeTempId() { return `tmp_${Date.now()}_${Math.random()}`; }
 
 export default function NewVersuch() {
   const router = useRouter();
+  const { settings } = useSettingsContext();
 
   // Stammdaten
-  const [versuchId] = useState(generateVersuchId);
+  const [versuchId] = useState(() => generateID(settings.versuch_id_prefix, settings.versuch_id_format));
   const [bezeichnung, setBezeichnung] = useState('');
-  const [material, setMaterial] = useState('');
+  const [material, setMaterial] = useState(settings.default_material);
   const [dimX, setDimX] = useState('');
   const [dimY, setDimY] = useState('');
   const [dimZ, setDimZ] = useState('');
-  const [status, setStatus] = useState<VersuchStatus>('Entwurf');
+  const [status, setStatus] = useState<VersuchStatus>(settings.default_status);
   const [notizen, setNotizen] = useState('');
 
   // Prozesskette

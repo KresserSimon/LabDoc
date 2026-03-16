@@ -11,6 +11,7 @@ import {
   type AliconaMessung, type MessDatei, type KennWert,
   ALICONA_OBJEKTIVE,
 } from '../constants/messmethoden';
+import { useSettingsContext } from '../contexts/SettingsContext';
 
 interface Props {
   initial?: Partial<AliconaMessung>;
@@ -30,8 +31,9 @@ const FELDER: { key: keyof AliconaMessung; label: string }[] = [
 ];
 
 export default function AliconaFormular({ initial, dateien = [], onChange, onAddDatei, onDeleteDatei }: Props) {
-  const [objektiv, setObjektiv] = useState(initial?.objektiv ?? '20x');
-  const [messprogramm, setMessprogramm] = useState(initial?.messprogramm ?? '');
+  const { settings } = useSettingsContext();
+  const [objektiv, setObjektiv] = useState(initial?.objektiv ?? settings.default_alicona_objektiv);
+  const [messprogramm, setMessprogramm] = useState(initial?.messprogramm ?? settings.default_alicona_messprogramm);
   const [werte, setWerte] = useState<Record<string, string>>({
     ra:   initial?.ra?.toString()   ?? '',
     rz:   initial?.rz?.toString()   ?? '',
